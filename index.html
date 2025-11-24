@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cinema Sentiment & Revenue Analyzer (Powered by Pandas)</title>
+    
+    <!-- PyScript: Run Python & Pandas in the Browser -->
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css" />
+    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --positive: #22c55e;
+            --negative: #ef4444;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1, h2, h3 { margin: 0 0 10px 0; }
+        p { color: var(--text-muted); line-height: 1.5; }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .container { grid-template-columns: 1fr; }
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Form Styling */
+        .form-group { margin-bottom: 16px; }
+        label { display: block; margin-bottom: 6px; font-size: 0.9rem; color: var(--text-muted); }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-family: inherit;
+            box-sizing: border-box; 
+        }
+        input:focus, textarea:focus { outline: 2px solid var(--primary); border-color: transparent; }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background: var(--primary-dark); }
+
+        /* Stats Dashboard */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .stat-box {
+            background: rgba(255,255,255,0.05);
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            position: relative;
+        }
+        .stat-value { font-size: 1.5rem; font-weight: bold; display: block; }
+        .stat-label { font-size: 0.8rem; color: var(--text-muted); }
+        
+        /* Python Loading Indicator */
+        #py-status {
+            font-size: 0.7rem;
+            color: #fbbf24;
+            position: absolute;
+            top: 5px;
+            right: 5px;
+        }
+
+        /* Canvas */
+        .canvas-container {
+            width: 100%;
+            height: 350px;
+            background: #111;
+            border-radius: 8px;
+            position: relative;
+        }
+        canvas { width: 100%; height: 100%; }
+
+        /* Data Table */
+        .table-container {
+            margin-top: 20px;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th { color: var(--text-muted); font-weight: 600; }
+        
+        .sentiment-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.8em;
+        }
+        .pos { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+        .neg { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+        .neu { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
+
+        .header-section {
+            width: 100%;
+            max-width: 1200px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .badge {
+            background: var(--border);
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .python-logo {
+            width: 12px;
+            height: 12px;
+            background: linear-gradient(135deg, #3776ab 50%, #ffd343 50%);
+            border-radius: 50%;
+            display: inline-block;
+        }
+    </style>
+
+    <!-- MOVED SCRIPT HERE: Variables must be defined before PyScript tries to access them -->
+    <script>
+        /**
+         * 1. MINI-SENTIMENT DICTIONARY (Subset of AFINN-165)
+         */
+        const sentimentDict = {
+            "abandon": -2, "abandoned": -2, "abuse": -3, "accomplished": 2, "active": 1, "adequate": 1, "adore": 3, "adventure": 2, 
+            "amazing": 4, "ambitious": 2, "angry": -3, "annoy": -2, "annoying": -2, "anxious": -2, "apologize": -1, "applaud": 2, 
+            "appreciate": 2, "awesome": 4, "awful": -3, "bad": -3, "beautiful": 3, "beauty": 3, "best": 3, "bizarre": -2, "bland": -2,
+            "blockbuster": 3, "boring": -3, "breathtaking": 5, "brilliant": 4, "broken": -1, "calm": 2, "cancel": -1, "captivating": 3,
+            "careless": -2, "catastrophe": -3, "celebrate": 3, "charming": 3, "cheer": 2, "cinema": 0, "classic": 2, "clever": 2,
+            "cliché": -2, "cliche": -2, "comedy": 1, "comfortable": 2, "compelling": 2, "confident": 2, "confused": -2, "confusing": -2,
+            "congratulate": 2, "cool": 1, "crap": -3, "crazy": -2, "creative": 2, "criticize": -2, "cruel": -3, "cry": -1, "cute": 2,
+            "damage": -3, "damn": -1, "danger": -2, "daring": 2, "dark": -1, "dead": -3, "decent": 1, "defeat": -2, "delight": 3, 
+            "depressing": -2, "despair": -3, "destroy": -3, "disappoint": -2, "disappointed": -2, "disappointing": -2, "disaster": -2, 
+            "disgust": -3, "disgusting": -3, "disturbing": -2, "dizzy": -1, "dreadful": -3, "dull": -2, "dumb": -3, "eager": 2, 
+            "effective": 2, "elegant": 2, "embarrass": -2, "emotional": 1, "empty": -1, "enjoy": 2, "enjoyable": 2, "entertaining": 2, 
+            "enthusiastic": 3, "epic": 3, "evil": -3, "excellent": 3, "cite": 2, "exciting": 3, "exhausted": -2, "fail": -2, "failure": -2, 
+            "fair": 1, "fake": -3, "fantastic": 4, "fascinating": 3, "fault": -2, "fear": -2, "fearless": 2, "filthy": -2, "flop": -2, 
+            "focus": 1, "fond": 2, "fool": -2, "forced": -1, "forget": -1, "forgive": 1, "fresh": 1, "friendly": 2, "frightening": -2, 
+            "fun": 2, "funny": 2, "furious": -3, "garbage": -3, "generous": 2, "genius": 3, "glad": 3, "gloomy": -2, "glory": 2, 
+            "good": 3, "grace": 1, "great": 3, "greed": -3, "grief": -2, "gross": -2, "guilt": -3, "happy": 3, "hard": -1, "harm": -2, 
+            "hate": -3, "haunt": -1, "healthy": 2, "heartbreaking": -3, "hero": 2, "hilarious": 2, "honest": 2, "hope": 2, "horrible": -3, 
+            "horror": -3, "huge": 1, "humor": 2, "hurt": -2, "hysterical": -1, "idiot": -3, "ignore": -1, "impressive": 3, "incompetent": -2, 
+            "incredible": 4, "insane": -2, "inspiring": 3, "insult": -2, "intelligent": 2, "intense": 1, "interesting": 2, "irritating": -3, 
+            "joke": -1, "jolly": 2, "joy": 3, "justice": 2, "kill": -3, "kind": 2, "lack": -2, "lame": -2, "laugh": 1, "lazy": -1, 
+            "legendary": 3, "like": 2, "loathe": -3, "lonely": -2, "love": 3, "lovely": 3, "lucky": 3, "mad": -3, "magnificent": 3, 
+            "masterpiece": 4, "mess": -2, "misery": -3, "miss": -2, "mistake": -2, "modern": 1, "movie": 0, "nasty": -3, "negative": -2, 
+            "nice": 3, "nonsense": -2, "novel": 1, "okay": 0, "original": 2, "outstanding": 5, "overrated": -1, "pain": -2, "pathetic": -2, 
+            "perfect": 3, "pleased": 2, "plot": 0, "poor": -2, "popular": 2, "positive": 2, "powerful": 2, "praise": 3, "predictable": -1, 
+            "problem": -2, "proud": 2, "pure": 1, "rage": -2, "recommend": 2, "regret": -2, "reject": -1, "relax": 2, "remarkable": 2, 
+            "repetitive": -2, "rescue": 2, "reward": 2, "rich": 2, "ridiculous": -2, "rotten": -3, "sad": -2, "satisfy": 2, "scary": -2, 
+            "scream": -2, "selfish": -3, "serious": 0, "shame": -2, "share": 1, "shock": -2, "sick": -2, "silly": -1, "simple": 0, 
+            "smart": 1, "smile": 2, "solid": 2, "sophisticated": 2, "sore": -1, "sorry": -1, "sour": -1, "spectacular": 3, "startling": 1, 
+            "stunning": 4, "stupid": -2, "success": 2, "successful": 3, "suffer": -2, "super": 3, "support": 2, "sure": 1, "surprise": 2, 
+            "suspense": 1, "sweet": 2, "talent": 2, "tears": -2, "terrible": -3, "terrifying": -3, "terror": -3, "thank": 2, "thoughtful": 2, 
+            "thrilling": 5, "tired": -2, "top": 2, "torture": -4, "tragedy": -2, "trash": -3, "trauma": -3, "triumph": 4, "trouble": -2, 
+            "trust": 1, "ugly": -3, "unbelievable": -1, "understanding": 2, "unique": 2, "useless": -2, "victory": 3, "violent": -2, 
+            "visionary": 3, "waste": -3, "weak": -2, "wealth": 3, "weird": -1, "welcome": 2, "wonderful": 4, "worst": -3, "worth": 2, 
+            "wow": 4, "wrong": -2, "yell": -2, "zeal": 2
+        };
+
+        // Global Data State - Attached to Window explicitly for PyScript
+        window.movies = [
+            { title: "Barbie", revenue: 1445, text: "A candy-colored masterpiece. Margot Robbie is amazing and the movie is funny, smart, and beautiful. A true success." },
+            { title: "Oppenheimer", revenue: 955, text: "A cinematic triumph. Cillian Murphy is brilliant in this intense, terrifying, and visually stunning look at history." },
+            { title: "The Marvels", revenue: 206, text: "It has fun moments and great chemistry, but the plot is messy and the villain is weak and forgettable." },
+            { title: "Morbius", revenue: 167, text: "A soulless, confused disaster. The visual effects are ugly, the story makes no sense, and it is boring. A total waste." },
+            { title: "Five Nights at Freddy's", revenue: 291, text: "Strictly for the fans. The animatronics are cool, but the movie is silly and lacks real horror or scares." },
+            { title: "Avatar: Way of Water", revenue: 2320, text: "Visually breathtaking and immersive. The story is simple, but the world is beautiful and the action is spectacular." }
+        ];
+
+        // Initialize
+        window.onload = function() {
+            processData();
+            renderAll();
+        };
+
+        function processData() {
+            window.movies.forEach(movie => {
+                const analysis = analyzeSentiment(movie.text);
+                movie.sentimentScore = analysis.score;
+                movie.keywords = analysis.keywords;
+            });
+        }
+
+        function analyzeSentiment(text) {
+            const tokens = text.toLowerCase().match(/\b(\w+)\b/g) || [];
+            let score = 0;
+            let keywords = [];
+
+            tokens.forEach(token => {
+                if (sentimentDict[token]) {
+                    score += sentimentDict[token];
+                    keywords.push(token);
+                }
+            });
+
+            // Normalize
+            let finalScore = score;
+            if (tokens.length > 0) finalScore = score / (tokens.length * 0.1); 
+            finalScore = Math.max(-5, Math.min(5, finalScore));
+
+            return { score: finalScore, keywords: [...new Set(keywords)] };
+        }
+
+        function addMovie() {
+            const title = document.getElementById('movieTitle').value;
+            const revenue = parseFloat(document.getElementById('movieRevenue').value);
+            const text = document.getElementById('movieReview').value;
+
+            if (!title || isNaN(revenue) || !text) {
+                alert("Please fill in all fields.");
+                return;
+            }
+
+            window.movies.push({ title, revenue, text });
+            
+            document.getElementById('movieTitle').value = '';
+            document.getElementById('movieRevenue').value = '';
+            document.getElementById('movieReview').value = '';
+
+            processData();
+            renderAll();
+        }
+
+        function renderStats() {
+            document.getElementById('stat-n').innerText = window.movies.length;
+            if (window.run_pandas_stats) {
+                window.run_pandas_stats();
+            } else {
+                console.log("Waiting for Python/Pandas to initialize...");
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.querySelector('#dataTable tbody');
+            tbody.innerHTML = '';
+
+            window.movies.forEach(m => {
+                const tr = document.createElement('tr');
+                
+                let sentClass = 'neu';
+                if (m.sentimentScore > 1) sentClass = 'pos';
+                if (m.sentimentScore < -1) sentClass = 'neg';
+
+                tr.innerHTML = `
+                    <td><strong>${m.title}</strong></td>
+                    <td>$${m.revenue}M</td>
+                    <td><span class="sentiment-badge ${sentClass}">${m.sentimentScore.toFixed(2)}</span></td>
+                    <td style="color: #94a3b8; font-size: 0.8em;">${m.keywords.join(', ')}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function drawChart() {
+            const canvas = document.getElementById('scatterChart');
+            const ctx = canvas.getContext('2d');
+            
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            
+            const width = rect.width;
+            const height = rect.height;
+            const padding = 50;
+
+            ctx.clearRect(0, 0, width, height);
+
+            const maxRev = Math.max(...window.movies.map(m => m.revenue)) * 1.1; 
+            const minSent = -5;
+            const maxSent = 5;
+
+            const mapX = (val) => padding + ((val - minSent) / (maxSent - minSent)) * (width - 2 * padding);
+            const mapY = (val) => height - padding - (val / maxRev) * (height - 2 * padding);
+
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+
+            ctx.beginPath();
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, height - padding);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(padding, height - padding);
+            ctx.lineTo(width - padding, height - padding);
+            ctx.stroke();
+
+            const xZero = mapX(0);
+            ctx.strokeStyle = '#1e293b';
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(xZero, padding);
+            ctx.lineTo(xZero, height - padding);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText("Sentiment Score", width / 2, height - 10);
+            ctx.fillText("Revenue ($M)", 40, 20);
+            
+            ctx.fillText("-5 (Neg)", mapX(-5), height - 30);
+            ctx.fillText("0", mapX(0), height - 30);
+            ctx.fillText("+5 (Pos)", mapX(5), height - 30);
+
+            window.movies.forEach(m => {
+                const x = mapX(m.sentimentScore);
+                const y = mapY(m.revenue);
+
+                ctx.beginPath();
+                ctx.arc(x, y, 6, 0, Math.PI * 2);
+                ctx.fillStyle = '#6366f1';
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.stroke();
+            });
+
+            calculateJSLine(ctx, mapX, mapY);
+        }
+
+        function calculateJSLine(ctx, mapX, mapY) {
+            const n = window.movies.length;
+            const xVals = window.movies.map(m => m.sentimentScore);
+            const yVals = window.movies.map(m => m.revenue);
+            const sumX = xVals.reduce((a, b) => a + b, 0);
+            const sumY = yVals.reduce((a, b) => a + b, 0);
+            const sumXY = xVals.reduce((sum, xi, i) => sum + xi * yVals[i], 0);
+            const sumX2 = xVals.reduce((sum, xi) => sum + xi * xi, 0);
+
+            const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+
+            if (!isNaN(slope)) {
+                const startX = -5;
+                const endX = 5;
+                const startY = slope * startX + intercept;
+                const endY = slope * endX + intercept;
+
+                ctx.beginPath();
+                ctx.moveTo(mapX(startX), mapY(startY));
+                ctx.lineTo(mapX(endX), mapY(endY));
+                ctx.strokeStyle = '#22c55e'; 
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+
+        function renderAll() {
+            renderStats();
+            renderTable();
+            drawChart();
+        }
+    </script>
+</head>
+<body>
+
+    <div class="header-section">
+        <div>
+            <h1>🎬 Cinema Sentiment Analyzer</h1>
+            <p>End-to-End Analysis: NLP Sentiment vs. Box Office Revenue</p>
+        </div>
+        <span class="badge">
+            <span class="python-logo"></span>
+            Powered by Pandas (PyScript)
+        </span>
+    </div>
+
+    <div class="container">
+        
+        <!-- Left Panel: Data Entry -->
+        <div class="card">
+            <h3>Add a Movie</h3>
+            <p style="font-size: 0.9rem; margin-bottom: 20px;">
+                Enter a movie and a review. The system will analyze the text sentiment locally and update the Pandas DataFrame.
+            </p>
+            
+            <div class="form-group">
+                <label>Movie Title</label>
+                <input type="text" id="movieTitle" placeholder="e.g. Dune: Part Two">
+            </div>
+
+            <div class="form-group">
+                <label>Box Office Revenue ($ Millions)</label>
+                <input type="number" id="movieRevenue" placeholder="e.g. 700">
+            </div>
+
+            <div class="form-group">
+                <label>Review Text</label>
+                <textarea id="movieReview" rows="4" placeholder="Type a review here... (e.g. 'The visuals were stunning and the story was amazing!')"></textarea>
+            </div>
+
+            <button onclick="addMovie()">Analyze & Add to Dataset</button>
+            
+            <div style="margin-top: 20px; font-size: 0.85rem; color: var(--text-muted);">
+                <strong>How it works:</strong> <br>
+                1. <b>Tokenization:</b> JS splits text into words.<br>
+                2. <b>Scoring:</b> JS matches AFINN dictionary.<br>
+                3. <b>Stats:</b> <u>Python (Pandas)</u> calculates the Pearson Correlation coefficient inside the browser.
+            </div>
+        </div>
+
+        <!-- Right Panel: Visualization & Stats -->
+        <div class="card">
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <span class="stat-value" id="stat-n">0</span>
+                    <span class="stat-label">Movies Analyzed</span>
+                </div>
+                <div class="stat-box">
+                    <div id="py-status">⏳</div>
+                    <span class="stat-value" id="stat-corr">0.00</span>
+                    <span class="stat-label">Pearson Correlation (r)</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-value" id="stat-trend">--</span>
+                    <span class="stat-label">Interpretation</span>
+                </div>
+            </div>
+
+            <div class="canvas-container">
+                <canvas id="scatterChart"></canvas>
+            </div>
+
+            <div class="table-container">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th>Movie</th>
+                            <th>Revenue ($M)</th>
+                            <th>Sentiment</th>
+                            <th>Keywords Detected</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Rows injected by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1. Configure Python Environment -->
+    <py-config>
+        packages = ["pandas"]
+    </py-config>
+
+    <!-- 2. The Python Script -->
+    <py-script>
+        import pandas as pd
+        from pyscript import window
+        from js import document, console
+
+        def run_pandas_stats():
+            try:
+                # Get the window object to access variables from the global scope
+                from js import window
+                
+                # Check if window.movies exists
+                if not hasattr(window, 'movies'):
+                   console.log("Movies array not ready yet.")
+                   return
+
+                data = window.movies.to_py()
+                
+                if not data:
+                    return
+
+                # 2. Create DataFrame
+                df = pd.DataFrame(data)
+                
+                # 3. Calculate Correlation using Pandas
+                if len(df) > 1:
+                    corr = df['revenue'].corr(df['sentimentScore'])
+                else:
+                    corr = 0.0
+
+                # 4. Update the DOM directly from Python
+                # We format it to 3 decimal places
+                document.getElementById('stat-corr').innerText = f"{corr:.3f}"
+                
+                # 5. Determine Trend Text
+                trend = "Neutral"
+                color = "#fff"
+                
+                if corr > 0.5: 
+                    trend = "Strong Positive"
+                    color = "#4ade80"
+                elif corr > 0.1: 
+                    trend = "Weak Positive"
+                    color = "#4ade80"
+                elif corr < -0.5: 
+                    trend = "Strong Negative"
+                    color = "#f87171"
+                elif corr < -0.1: 
+                    trend = "Weak Negative"
+                    color = "#f87171"
+                
+                trend_el = document.getElementById('stat-trend')
+                trend_el.innerText = trend
+                trend_el.style.color = color
+
+                # Update Status Indicator
+                document.getElementById('py-status').innerText = "🐍"
+                document.getElementById('py-status').title = "Computed via Pandas"
+                
+                console.log(f"Pandas calculated correlation: {corr}")
+
+            except Exception as e:
+                console.error(f"Python Error: {e}")
+
+        # Expose the function to the global JavaScript window object
+        window.run_pandas_stats = run_pandas_stats
+        
+        # Run once on load to initialize if ready
+        run_pandas_stats()
+    </py-script>
+
+</body>
+</html>
