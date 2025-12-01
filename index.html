@@ -3,580 +3,727 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cinema Sentiment & Revenue Analyzer (Powered by Pandas)</title>
+    <title>CineMetrics | Cinematic Market Intelligence</title>
     
-    <!-- PyScript: Run Python & Pandas in the Browser -->
+    <!-- PyScript Core -->
     <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css" />
     <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
 
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
     <style>
         :root {
-            --primary: #6366f1;
-            --primary-dark: #4f46e5;
-            --bg: #0f172a;
-            --card-bg: #1e293b;
-            --text: #f8fafc;
-            --text-muted: #94a3b8;
-            --border: #334155;
-            --positive: #22c55e;
-            --negative: #ef4444;
+            /* --- PALETTE: Deep Space Fintech --- */
+            --bg-deep: #030303;
+            --bg-subtle: #0a0a0a;
+            --panel-glass: rgba(255, 255, 255, 0.03);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --panel-border-hover: rgba(255, 255, 255, 0.15);
+            
+            --accent: #28db85; /* Signal Green */
+            --accent-dim: rgba(40, 219, 133, 0.1);
+            --neg: #ff3366;     /* Signal Red */
+            --neg-dim: rgba(255, 51, 102, 0.1);
+            --neutral: #3b82f6; /* Blue for neutral/extra charts */
+            
+            --text-main: #ffffff;
+            --text-muted: #737373;
+            --text-dim: #404040;
+            
+            --ease: cubic-bezier(0.23, 1, 0.32, 1);
         }
+
+        * { box-sizing: border-box; outline: none; scrollbar-width: none; }
+        *::-webkit-scrollbar { display: none; }
 
         body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
             margin: 0;
-            padding: 20px;
+            background: var(--bg-deep);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* --- LAYOUT --- */
+        .app-container {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* --- LEFT SIDEBAR --- */
+        .sidebar {
+            background: var(--bg-subtle);
+            border-right: 1px solid var(--panel-border);
+            padding: 32px;
             display: flex;
             flex-direction: column;
+            gap: 24px;
+            z-index: 10;
+            overflow-y: auto;
+        }
+
+        .brand {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            display: flex;
             align-items: center;
-            min-height: 100vh;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .brand::before { content:''; width:8px; height:8px; background:var(--accent); border-radius:50%; box-shadow: 0 0 12px var(--accent); }
+
+        .control-group { display: flex; flex-direction: column; gap: 20px; }
+        
+        label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+            display: block;
         }
 
-        h1, h2, h3 { margin: 0 0 10px 0; }
-        p { color: var(--text-muted); line-height: 1.5; }
-
-        .container {
-            max-width: 1200px;
-            width: 100%;
-            display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 20px;
-        }
-
-        @media (max-width: 900px) {
-            .container { grid-template-columns: 1fr; }
-        }
-
-        /* Cards */
-        .card {
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Form Styling */
-        .form-group { margin-bottom: 16px; }
-        label { display: block; margin-bottom: 6px; font-size: 0.9rem; color: var(--text-muted); }
         input, textarea {
             width: 100%;
-            padding: 10px;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: var(--text);
-            font-family: inherit;
-            box-sizing: border-box; 
+            background: var(--panel-glass);
+            border: 1px solid var(--panel-border);
+            color: var(--text-main);
+            padding: 14px;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            transition: all 0.3s var(--ease);
         }
-        input:focus, textarea:focus { outline: 2px solid var(--primary); border-color: transparent; }
-        
-        button {
-            width: 100%;
-            padding: 12px;
-            background: var(--primary);
-            color: white;
+        input:focus, textarea:focus {
+            border-color: var(--accent);
+            background: rgba(40, 219, 133, 0.02);
+            box-shadow: 0 0 0 4px rgba(40, 219, 133, 0.05);
+        }
+
+        .btn-main {
+            background: var(--text-main);
+            color: #000;
             border: none;
-            border-radius: 6px;
+            padding: 16px;
+            border-radius: 8px;
             font-weight: 600;
+            font-size: 13px;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: transform 0.2s var(--ease);
         }
-        button:hover { background: var(--primary-dark); }
+        .btn-main:hover { transform: scale(1.02); }
+        .btn-main:active { transform: scale(0.98); }
 
-        /* Stats Dashboard */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-        .stat-box {
-            background: rgba(255,255,255,0.05);
+        .nlp-stage {
+            min-height: 80px;
             padding: 12px;
+            border: 1px dashed var(--panel-border);
             border-radius: 8px;
-            text-align: center;
-            position: relative;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--text-muted);
         }
-        .stat-value { font-size: 1.5rem; font-weight: bold; display: block; }
-        .stat-label { font-size: 0.8rem; color: var(--text-muted); }
+        .tag-pos { color: var(--accent); }
+        .tag-neg { color: var(--neg); }
+
+        /* --- DASHBOARD --- */
+        .dashboard {
+            position: relative;
+            overflow-y: auto;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .dashboard::before {
+            content: ''; position: fixed; top: -20%; right: -10%; width: 800px; height: 800px;
+            background: radial-gradient(circle, rgba(40, 219, 133, 0.03), transparent 60%);
+            pointer-events: none; z-index: 0;
+        }
+
+        /* 1. METRICS ROW */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            z-index: 1;
+        }
+
+        .metric-card {
+            background: var(--panel-glass);
+            border: 1px solid var(--panel-border);
+            padding: 20px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .metric-head { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+        .metric-val { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 500; }
+        .metric-status { font-size: 10px; color: var(--accent); margin-top: 4px; display: block; }
+
+        /* 2. MAIN SCATTER CHART */
+        .chart-main-section {
+            height: 380px;
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            position: relative;
+            background: radial-gradient(circle at 50% 100%, rgba(255,255,255,0.02), transparent);
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        /* 3. SECONDARY CHARTS ROW (Bar & Pie) */
+        .secondary-charts-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 16px;
+            height: 300px;
+            z-index: 1;
+        }
         
-        /* Python Loading Indicator */
-        #py-status {
-            font-size: 0.7rem;
-            color: #fbbf24;
-            position: absolute;
-            top: 5px;
-            right: 5px;
-        }
-
-        /* Canvas */
-        .canvas-container {
-            width: 100%;
-            height: 350px;
-            background: #111;
-            border-radius: 8px;
+        .chart-box {
+            background: var(--panel-glass);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
             position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
-        canvas { width: 100%; height: 100%; }
 
-        /* Data Table */
-        .table-container {
-            margin-top: 20px;
-            overflow-x: auto;
+        canvas { width: 100%; height: 100%; display: block; }
+        
+        .chart-label {
+            position: absolute;
+            top: 20px; left: 20px;
+            font-size: 12px; font-weight: 600;
+            color: var(--text-muted);
+            display: flex; align-items: center; gap: 8px;
+            z-index: 5;
+            pointer-events: none;
         }
-        table {
+        .live-dot { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+
+        /* 4. DATA TABLE */
+        .data-section { z-index: 1; margin-bottom: 40px; }
+        
+        .section-header { 
+            display: flex; justify-content: space-between; align-items: flex-end; 
+            margin-bottom: 20px; border-bottom: 1px solid var(--panel-border); padding-bottom: 16px;
+        }
+        .section-title { font-size: 16px; font-weight: 600; }
+        .section-sub { font-size: 12px; color: var(--text-muted); }
+
+        .data-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.9rem;
+            font-size: 13px;
         }
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid var(--border);
-        }
-        th { color: var(--text-muted); font-weight: 600; }
         
-        .sentiment-badge {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-weight: bold;
-            font-size: 0.8em;
+        .data-table th {
+            text-align: left;
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 11px;
+            text-transform: uppercase;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--panel-border);
         }
-        .pos { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
-        .neg { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-        .neu { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
 
-        .header-section {
-            width: 100%;
-            max-width: 1200px;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .data-table td {
+            padding: 16px;
+            color: var(--text-main);
+            border-bottom: 1px solid var(--panel-border);
+            transition: background 0.2s;
         }
-        .badge {
-            background: var(--border);
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            display: flex;
-            align-items: center;
-            gap: 6px;
+
+        .data-row:hover td { background: var(--panel-glass); }
+
+        .cell-movie { font-weight: 600; }
+        .cell-rev { font-family: 'JetBrains Mono', monospace; color: var(--text-muted); }
+        .cell-sent { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+        .sent-high { color: var(--accent); }
+        .sent-low { color: var(--neg); }
+        .sent-mid { color: var(--text-muted); }
+
+        .kw-pill {
+            display: inline-block; padding: 4px 8px; background: rgba(255,255,255,0.05);
+            border-radius: 4px; font-size: 11px; color: var(--text-muted); margin-right: 4px; margin-bottom: 4px;
         }
-        .python-logo {
-            width: 12px;
-            height: 12px;
-            background: linear-gradient(135deg, #3776ab 50%, #ffd343 50%);
-            border-radius: 50%;
-            display: inline-block;
+        .kw-pill.pos { background: var(--accent-dim); color: var(--accent); }
+        .kw-pill.neg { background: var(--neg-dim); color: var(--neg); }
+
+        /* Tooltip */
+        .tooltip {
+            position: absolute; pointer-events: none; background: rgba(10, 10, 10, 0.9);
+            border: 1px solid var(--panel-border); padding: 12px; border-radius: 8px;
+            font-size: 12px; z-index: 100; opacity: 0; transition: opacity 0.1s;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
+
     </style>
 
-    <!-- MOVED SCRIPT HERE: Variables must be defined before PyScript tries to access them -->
     <script>
-        /**
-         * 1. MINI-SENTIMENT DICTIONARY (Subset of AFINN-165)
-         */
+        // --- 1. DATA CORE ---
+        window.appState = {
+            movies: [
+                { title: "Barbie", revenue: 1445, text: "A candy-colored masterpiece. Margot Robbie is amazing and the movie is funny, smart, and beautiful. A true success.", sentiment: 5.00 },
+                { title: "Oppenheimer", revenue: 955, text: "A cinematic triumph. Cillian Murphy is brilliant in this intense, terrifying, and visually stunning look at history.", sentiment: 5.00 },
+                { title: "The Marvels", revenue: 206, text: "It has fun moments and great chemistry, but the plot is messy and the villain is weak and forgettable.", sentiment: 1.58 },
+                { title: "Morbius", revenue: 167, text: "A soulless, confused disaster. The visual effects are ugly, the story makes no sense, and it is boring. A total waste.", sentiment: -5.00 },
+                { title: "Five Nights at Freddy's", revenue: 291, text: "Strictly for the fans. The animatronics are cool, but the movie is silly and lacks real horror or scares.", sentiment: -1.58 },
+                { title: "Avatar: Way of Water", revenue: 2320, text: "Visually breathtaking and immersive. The story is simple, but the world is beautiful and the action is spectacular.", sentiment: 5.00 },
+                { title: "Dune", revenue: 700, text: "A solid adaptation but feels incomplete.", sentiment: 0.00 }
+            ],
+            regression: { slope: 0, intercept: 0, r2: 0, isReady: false }
+        };
+
         const sentimentDict = {
-            "abandon": -2, "abandoned": -2, "abuse": -3, "accomplished": 2, "active": 1, "adequate": 1, "adore": 3, "adventure": 2, 
-            "amazing": 4, "ambitious": 2, "angry": -3, "annoy": -2, "annoying": -2, "anxious": -2, "apologize": -1, "applaud": 2, 
-            "appreciate": 2, "awesome": 4, "awful": -3, "bad": -3, "beautiful": 3, "beauty": 3, "best": 3, "bizarre": -2, "bland": -2,
-            "blockbuster": 3, "boring": -3, "breathtaking": 5, "brilliant": 4, "broken": -1, "calm": 2, "cancel": -1, "captivating": 3,
-            "careless": -2, "catastrophe": -3, "celebrate": 3, "charming": 3, "cheer": 2, "cinema": 0, "classic": 2, "clever": 2,
-            "cliché": -2, "cliche": -2, "comedy": 1, "comfortable": 2, "compelling": 2, "confident": 2, "confused": -2, "confusing": -2,
-            "congratulate": 2, "cool": 1, "crap": -3, "crazy": -2, "creative": 2, "criticize": -2, "cruel": -3, "cry": -1, "cute": 2,
-            "damage": -3, "damn": -1, "danger": -2, "daring": 2, "dark": -1, "dead": -3, "decent": 1, "defeat": -2, "delight": 3, 
-            "depressing": -2, "despair": -3, "destroy": -3, "disappoint": -2, "disappointed": -2, "disappointing": -2, "disaster": -2, 
-            "disgust": -3, "disgusting": -3, "disturbing": -2, "dizzy": -1, "dreadful": -3, "dull": -2, "dumb": -3, "eager": 2, 
-            "effective": 2, "elegant": 2, "embarrass": -2, "emotional": 1, "empty": -1, "enjoy": 2, "enjoyable": 2, "entertaining": 2, 
-            "enthusiastic": 3, "epic": 3, "evil": -3, "excellent": 3, "cite": 2, "exciting": 3, "exhausted": -2, "fail": -2, "failure": -2, 
-            "fair": 1, "fake": -3, "fantastic": 4, "fascinating": 3, "fault": -2, "fear": -2, "fearless": 2, "filthy": -2, "flop": -2, 
-            "focus": 1, "fond": 2, "fool": -2, "forced": -1, "forget": -1, "forgive": 1, "fresh": 1, "friendly": 2, "frightening": -2, 
-            "fun": 2, "funny": 2, "furious": -3, "garbage": -3, "generous": 2, "genius": 3, "glad": 3, "gloomy": -2, "glory": 2, 
-            "good": 3, "grace": 1, "great": 3, "greed": -3, "grief": -2, "gross": -2, "guilt": -3, "happy": 3, "hard": -1, "harm": -2, 
-            "hate": -3, "haunt": -1, "healthy": 2, "heartbreaking": -3, "hero": 2, "hilarious": 2, "honest": 2, "hope": 2, "horrible": -3, 
-            "horror": -3, "huge": 1, "humor": 2, "hurt": -2, "hysterical": -1, "idiot": -3, "ignore": -1, "impressive": 3, "incompetent": -2, 
-            "incredible": 4, "insane": -2, "inspiring": 3, "insult": -2, "intelligent": 2, "intense": 1, "interesting": 2, "irritating": -3, 
-            "joke": -1, "jolly": 2, "joy": 3, "justice": 2, "kill": -3, "kind": 2, "lack": -2, "lame": -2, "laugh": 1, "lazy": -1, 
-            "legendary": 3, "like": 2, "loathe": -3, "lonely": -2, "love": 3, "lovely": 3, "lucky": 3, "mad": -3, "magnificent": 3, 
-            "masterpiece": 4, "mess": -2, "misery": -3, "miss": -2, "mistake": -2, "modern": 1, "movie": 0, "nasty": -3, "negative": -2, 
-            "nice": 3, "nonsense": -2, "novel": 1, "okay": 0, "original": 2, "outstanding": 5, "overrated": -1, "pain": -2, "pathetic": -2, 
-            "perfect": 3, "pleased": 2, "plot": 0, "poor": -2, "popular": 2, "positive": 2, "powerful": 2, "praise": 3, "predictable": -1, 
-            "problem": -2, "proud": 2, "pure": 1, "rage": -2, "recommend": 2, "regret": -2, "reject": -1, "relax": 2, "remarkable": 2, 
-            "repetitive": -2, "rescue": 2, "reward": 2, "rich": 2, "ridiculous": -2, "rotten": -3, "sad": -2, "satisfy": 2, "scary": -2, 
-            "scream": -2, "selfish": -3, "serious": 0, "shame": -2, "share": 1, "shock": -2, "sick": -2, "silly": -1, "simple": 0, 
-            "smart": 1, "smile": 2, "solid": 2, "sophisticated": 2, "sore": -1, "sorry": -1, "sour": -1, "spectacular": 3, "startling": 1, 
-            "stunning": 4, "stupid": -2, "success": 2, "successful": 3, "suffer": -2, "super": 3, "support": 2, "sure": 1, "surprise": 2, 
-            "suspense": 1, "sweet": 2, "talent": 2, "tears": -2, "terrible": -3, "terrifying": -3, "terror": -3, "thank": 2, "thoughtful": 2, 
-            "thrilling": 5, "tired": -2, "top": 2, "torture": -4, "tragedy": -2, "trash": -3, "trauma": -3, "triumph": 4, "trouble": -2, 
-            "trust": 1, "ugly": -3, "unbelievable": -1, "understanding": 2, "unique": 2, "useless": -2, "victory": 3, "violent": -2, 
-            "visionary": 3, "waste": -3, "weak": -2, "wealth": 3, "weird": -1, "welcome": 2, "wonderful": 4, "worst": -3, "worth": 2, 
-            "wow": 4, "wrong": -2, "yell": -2, "zeal": 2
+            "masterpiece": 4, "amazing": 4, "funny": 2, "smart": 2, "beautiful": 3, "success": 3,
+            "triumph": 4, "brilliant": 4, "intense": 1, "terrifying": -1, "stunning": 4,
+            "fun": 2, "great": 3, "messy": -2, "weak": -2, "forgettable": -2,
+            "soulless": -3, "confused": -2, "disaster": -4, "ugly": -3, "boring": -3, "waste": -3,
+            "cool": 2, "silly": -1, "lacks": -2, "breathtaking": 5, "immersive": 3, "spectacular": 3, "horror": -1
         };
 
-        // Global Data State - Attached to Window explicitly for PyScript
-        window.movies = [
-            { title: "Barbie", revenue: 1445, text: "A candy-colored masterpiece. Margot Robbie is amazing and the movie is funny, smart, and beautiful. A true success." },
-            { title: "Oppenheimer", revenue: 955, text: "A cinematic triumph. Cillian Murphy is brilliant in this intense, terrifying, and visually stunning look at history." },
-            { title: "The Marvels", revenue: 206, text: "It has fun moments and great chemistry, but the plot is messy and the villain is weak and forgettable." },
-            { title: "Morbius", revenue: 167, text: "A soulless, confused disaster. The visual effects are ugly, the story makes no sense, and it is boring. A total waste." },
-            { title: "Five Nights at Freddy's", revenue: 291, text: "Strictly for the fans. The animatronics are cool, but the movie is silly and lacks real horror or scares." },
-            { title: "Avatar: Way of Water", revenue: 2320, text: "Visually breathtaking and immersive. The story is simple, but the world is beautiful and the action is spectacular." }
-        ];
-
-        // Initialize
-        window.onload = function() {
-            processData();
-            renderAll();
-        };
-
-        function processData() {
-            window.movies.forEach(movie => {
-                const analysis = analyzeSentiment(movie.text);
-                movie.sentimentScore = analysis.score;
-                movie.keywords = analysis.keywords;
-            });
-        }
-
-        function analyzeSentiment(text) {
+        // --- 2. LOGIC ENGINE ---
+        function analyze(text) {
             const tokens = text.toLowerCase().match(/\b(\w+)\b/g) || [];
             let score = 0;
             let keywords = [];
-
-            tokens.forEach(token => {
-                if (sentimentDict[token]) {
-                    score += sentimentDict[token];
-                    keywords.push(token);
+            tokens.forEach(t => { 
+                if(sentimentDict[t]) {
+                    score += sentimentDict[t];
+                    keywords.push({ word: t, val: sentimentDict[t] });
                 }
             });
-
-            // Normalize
-            let finalScore = score;
-            if (tokens.length > 0) finalScore = score / (tokens.length * 0.1); 
-            finalScore = Math.max(-5, Math.min(5, finalScore));
-
-            return { score: finalScore, keywords: [...new Set(keywords)] };
-        }
-
-        function addMovie() {
-            const title = document.getElementById('movieTitle').value;
-            const revenue = parseFloat(document.getElementById('movieRevenue').value);
-            const text = document.getElementById('movieReview').value;
-
-            if (!title || isNaN(revenue) || !text) {
-                alert("Please fill in all fields.");
-                return;
-            }
-
-            window.movies.push({ title, revenue, text });
-            
-            document.getElementById('movieTitle').value = '';
-            document.getElementById('movieRevenue').value = '';
-            document.getElementById('movieReview').value = '';
-
-            processData();
-            renderAll();
-        }
-
-        function renderStats() {
-            document.getElementById('stat-n').innerText = window.movies.length;
-            if (window.run_pandas_stats) {
-                window.run_pandas_stats();
-            } else {
-                console.log("Waiting for Python/Pandas to initialize...");
-            }
+            let norm = tokens.length > 0 ? (score / Math.sqrt(tokens.length)) * 2 : 0;
+            return { score: Math.max(-5, Math.min(5, norm)), keywords: keywords };
         }
 
         function renderTable() {
-            const tbody = document.querySelector('#dataTable tbody');
+            const tbody = document.getElementById('data-body');
             tbody.innerHTML = '';
-
-            window.movies.forEach(m => {
+            window.appState.movies.forEach(m => {
+                const analysis = analyze(m.text);
+                const displayScore = m.sentiment !== undefined ? m.sentiment : analysis.score;
                 const tr = document.createElement('tr');
-                
-                let sentClass = 'neu';
-                if (m.sentimentScore > 1) sentClass = 'pos';
-                if (m.sentimentScore < -1) sentClass = 'neg';
-
-                tr.innerHTML = `
-                    <td><strong>${m.title}</strong></td>
-                    <td>$${m.revenue}M</td>
-                    <td><span class="sentiment-badge ${sentClass}">${m.sentimentScore.toFixed(2)}</span></td>
-                    <td style="color: #94a3b8; font-size: 0.8em;">${m.keywords.join(', ')}</td>
-                `;
+                tr.className = 'data-row';
+                let scoreClass = 'sent-mid';
+                if(displayScore > 2) scoreClass = 'sent-high';
+                if(displayScore < -1) scoreClass = 'sent-low';
+                const kwHtml = analysis.keywords.map(k => `<span class="kw-pill ${k.val > 0 ? 'pos' : 'neg'}">${k.word}</span>`).join('');
+                tr.innerHTML = `<td class="cell-movie">${m.title}</td><td class="cell-rev">$${m.revenue}M</td><td class="cell-sent ${scoreClass}">${displayScore.toFixed(2)}</td><td>${kwHtml || '<span style="opacity:0.3">-</span>'}</td>`;
                 tbody.appendChild(tr);
             });
         }
 
-        function drawChart() {
-            const canvas = document.getElementById('scatterChart');
-            const ctx = canvas.getContext('2d');
-            
-            const dpr = window.devicePixelRatio || 1;
-            const rect = canvas.getBoundingClientRect();
-            canvas.width = rect.width * dpr;
-            canvas.height = rect.height * dpr;
-            ctx.scale(dpr, dpr);
-            
-            const width = rect.width;
-            const height = rect.height;
-            const padding = 50;
-
-            ctx.clearRect(0, 0, width, height);
-
-            const maxRev = Math.max(...window.movies.map(m => m.revenue)) * 1.1; 
-            const minSent = -5;
-            const maxSent = 5;
-
-            const mapX = (val) => padding + ((val - minSent) / (maxSent - minSent)) * (width - 2 * padding);
-            const mapY = (val) => height - padding - (val / maxRev) * (height - 2 * padding);
-
-            ctx.strokeStyle = '#334155';
-            ctx.lineWidth = 1;
-
-            ctx.beginPath();
-            ctx.moveTo(padding, padding);
-            ctx.lineTo(padding, height - padding);
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.moveTo(padding, height - padding);
-            ctx.lineTo(width - padding, height - padding);
-            ctx.stroke();
-
-            const xZero = mapX(0);
-            ctx.strokeStyle = '#1e293b';
-            ctx.setLineDash([5, 5]);
-            ctx.beginPath();
-            ctx.moveTo(xZero, padding);
-            ctx.lineTo(xZero, height - padding);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            ctx.fillStyle = '#94a3b8';
-            ctx.font = '12px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText("Sentiment Score", width / 2, height - 10);
-            ctx.fillText("Revenue ($M)", 40, 20);
-            
-            ctx.fillText("-5 (Neg)", mapX(-5), height - 30);
-            ctx.fillText("0", mapX(0), height - 30);
-            ctx.fillText("+5 (Pos)", mapX(5), height - 30);
-
-            window.movies.forEach(m => {
-                const x = mapX(m.sentimentScore);
-                const y = mapY(m.revenue);
-
-                ctx.beginPath();
-                ctx.arc(x, y, 6, 0, Math.PI * 2);
-                ctx.fillStyle = '#6366f1';
-                ctx.fill();
-                ctx.strokeStyle = '#fff';
-                ctx.stroke();
-            });
-
-            calculateJSLine(ctx, mapX, mapY);
+        function renderMetrics() {
+            document.getElementById('m-count').innerText = window.appState.movies.length;
         }
 
-        function calculateJSLine(ctx, mapX, mapY) {
-            const n = window.movies.length;
-            const xVals = window.movies.map(m => m.sentimentScore);
-            const yVals = window.movies.map(m => m.revenue);
-            const sumX = xVals.reduce((a, b) => a + b, 0);
-            const sumY = yVals.reduce((a, b) => a + b, 0);
-            const sumXY = xVals.reduce((sum, xi, i) => sum + xi * yVals[i], 0);
-            const sumX2 = xVals.reduce((sum, xi) => sum + xi * xi, 0);
+        function addEntry() {
+            const t = document.getElementById('in-title').value;
+            const r = parseFloat(document.getElementById('in-rev').value);
+            const txt = document.getElementById('in-text').value;
+            if(!t || isNaN(r) || !txt) return;
+            const res = analyze(txt);
+            window.appState.movies.push({ title: t, revenue: r, text: txt, sentiment: res.score });
+            document.getElementById('in-title').value = '';
+            document.getElementById('in-rev').value = '';
+            document.getElementById('in-text').value = '';
+            document.getElementById('nlp-preview').innerHTML = 'Waiting for input...';
+            
+            // Update ALL Charts
+            renderTable();
+            renderMetrics();
+            window.mainChart.sync();
+            window.barChart.sync();
+            window.pieChart.sync();
+            if(window.run_py) window.run_py();
+        }
 
-            const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-            const intercept = (sumY - slope * sumX) / n;
-
-            if (!isNaN(slope)) {
-                const startX = -5;
-                const endX = 5;
-                const startY = slope * startX + intercept;
-                const endY = slope * endX + intercept;
-
-                ctx.beginPath();
-                ctx.moveTo(mapX(startX), mapY(startY));
-                ctx.lineTo(mapX(endX), mapY(endY));
-                ctx.strokeStyle = '#22c55e'; 
-                ctx.lineWidth = 2;
-                ctx.stroke();
+        // --- 3. VISUALIZATION ENGINES ---
+        
+        // A. SCATTER CHART
+        class ScatterChart {
+            constructor() {
+                this.cvs = document.getElementById('viz-scatter');
+                this.ctx = this.cvs.getContext('2d');
+                this.points = [];
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                this.cvs.addEventListener('mousemove', e => this.hover(e));
+                requestAnimationFrame(() => this.loop());
+            }
+            resize() {
+                const p = this.cvs.parentElement.getBoundingClientRect();
+                this.dpr = window.devicePixelRatio || 1;
+                this.cvs.width = p.width * this.dpr; this.cvs.height = p.height * this.dpr;
+                this.ctx.scale(this.dpr, this.dpr);
+                this.w = p.width; this.h = p.height;
+                this.sync();
+            }
+            sync() {
+                const maxRev = Math.max(...window.appState.movies.map(m=>m.revenue)) * 1.1;
+                this.points = window.appState.movies.map(m => {
+                    const tx = 60 + ((m.sentiment - -6) / 12) * (this.w - 120);
+                    const ty = this.h - 60 - (m.revenue / maxRev) * (this.h - 120);
+                    let c = '#737373';
+                    if(m.sentiment > 1) c = '#28db85'; if(m.sentiment < -1) c = '#ff3366';
+                    return { x: tx, y: this.h, tx, ty, r: 0, tr: 6 + (m.revenue/maxRev)*12, color: c, data: m };
+                });
+            }
+            hover(e) {
+                const r = this.cvs.getBoundingClientRect();
+                const mx = e.clientX - r.left; const my = e.clientY - r.top;
+                this.hit = this.points.find(p => Math.hypot(mx-p.x, my-p.y) < p.r+10);
+                const tip = document.getElementById('tooltip');
+                if(this.hit) {
+                    tip.style.opacity = 1; tip.style.left = (e.clientX+15)+'px'; tip.style.top = (e.clientY+15)+'px';
+                    tip.innerHTML = `<strong style="color:${this.hit.color}">${this.hit.data.title}</strong><br>Sentiment: ${this.hit.data.sentiment.toFixed(2)}<br>Revenue: $${this.hit.data.revenue}M`;
+                    this.cvs.style.cursor = 'pointer';
+                } else { tip.style.opacity = 0; this.cvs.style.cursor = 'default'; }
+            }
+            loop() {
+                this.ctx.clearRect(0,0,this.w, this.h);
+                this.ctx.strokeStyle = 'rgba(255,255,255,0.03)'; this.ctx.lineWidth = 1;
+                const x0 = 60 + ((0 - -6) / 12) * (this.w - 120);
+                this.ctx.beginPath(); this.ctx.moveTo(x0, 40); this.ctx.lineTo(x0, this.h-40); this.ctx.stroke();
+                if(window.appState.regression.isReady) {
+                    const {slope, intercept} = window.appState.regression;
+                    const maxRev = Math.max(...window.appState.movies.map(m=>m.revenue)) * 1.1;
+                    const px1 = 60 + ((-6 - -6)/12)*(this.w-120); const py1 = this.h-60 - ((slope*-6+intercept)/maxRev)*(this.h-120);
+                    const px2 = 60 + ((6 - -6)/12)*(this.w-120); const py2 = this.h-60 - ((slope*6+intercept)/maxRev)*(this.h-120);
+                    this.ctx.beginPath(); this.ctx.moveTo(px1, py1); this.ctx.lineTo(px2, py2);
+                    this.ctx.strokeStyle = '#fff'; this.ctx.lineWidth = 2; this.ctx.setLineDash([4,4]); this.ctx.stroke(); this.ctx.setLineDash([]);
+                }
+                for(let p of this.points) {
+                    p.x+=(p.tx-p.x)*0.1; p.y+=(p.ty-p.y)*0.1; p.r+=((this.hit===p?p.tr*1.5:p.tr)-p.r)*0.1;
+                    this.ctx.fillStyle=p.color; this.ctx.beginPath(); this.ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); this.ctx.fill();
+                }
+                requestAnimationFrame(() => this.loop());
             }
         }
 
-        function renderAll() {
-            renderStats();
-            renderTable();
-            drawChart();
+        // B. BAR CHART (Revenue)
+        class BarChart {
+            constructor() {
+                this.cvs = document.getElementById('viz-bar');
+                this.ctx = this.cvs.getContext('2d');
+                this.resize(); window.addEventListener('resize', ()=>this.resize());
+                requestAnimationFrame(()=>this.loop());
+            }
+            resize() {
+                const p = this.cvs.parentElement.getBoundingClientRect();
+                this.dpr = window.devicePixelRatio||1;
+                this.cvs.width=p.width*this.dpr; this.cvs.height=p.height*this.dpr;
+                this.ctx.scale(this.dpr, this.dpr);
+                this.w=p.width; this.h=p.height;
+                this.sync();
+            }
+            sync() {
+                // Sort by revenue desc
+                const sorted = [...window.appState.movies].sort((a,b)=>b.revenue-a.revenue).slice(0, 5); // Top 5
+                const max = Math.max(...sorted.map(m=>m.revenue));
+                this.bars = sorted.map((m, i) => {
+                    const bw = (this.w - 40) / 5; 
+                    const bh = (m.revenue/max) * (this.h - 60);
+                    return { 
+                        x: 20 + i*bw + 5, 
+                        y: this.h - 20, 
+                        w: bw - 10, 
+                        th: bh, 
+                        h: 0,
+                        color: '#3b82f6',
+                        title: m.title 
+                    };
+                });
+            }
+            loop() {
+                this.ctx.clearRect(0,0,this.w,this.h);
+                if(!this.bars) return;
+                this.bars.forEach(b => {
+                    b.h += (b.th - b.h)*0.1;
+                    // Bar
+                    const grad = this.ctx.createLinearGradient(0, b.y - b.h, 0, b.y);
+                    grad.addColorStop(0, b.color); grad.addColorStop(1, 'rgba(59, 130, 246, 0.1)');
+                    this.ctx.fillStyle = grad;
+                    this.ctx.fillRect(b.x, b.y - b.h, b.w, b.h);
+                    // Label
+                    this.ctx.fillStyle = '#555';
+                    this.ctx.font = '10px Inter';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText(b.title.substring(0,10), b.x + b.w/2, b.y - b.h - 5);
+                });
+                requestAnimationFrame(()=>this.loop());
+            }
         }
+
+        // C. PIE CHART (Sentiment Dist)
+        class PieChart {
+            constructor() {
+                this.cvs = document.getElementById('viz-pie');
+                this.ctx = this.cvs.getContext('2d');
+                this.resize(); window.addEventListener('resize', ()=>this.resize());
+                requestAnimationFrame(()=>this.loop());
+            }
+            resize() {
+                const p = this.cvs.parentElement.getBoundingClientRect();
+                this.dpr = window.devicePixelRatio||1;
+                this.cvs.width=p.width*this.dpr; this.cvs.height=p.height*this.dpr;
+                this.ctx.scale(this.dpr, this.dpr);
+                this.w=p.width; this.h=p.height;
+                this.sync();
+            }
+            sync() {
+                let pos=0, neg=0, neu=0;
+                window.appState.movies.forEach(m => {
+                    if(m.sentiment > 1) pos++;
+                    else if(m.sentiment < -1) neg++;
+                    else neu++;
+                });
+                const total = window.appState.movies.length;
+                this.slices = [
+                    { v: pos/total, c: '#28db85', l: 'Pos' },
+                    { v: neg/total, c: '#ff3366', l: 'Neg' },
+                    { v: neu/total, c: '#3b82f6', l: 'Neu' }
+                ];
+                this.curAngles = [0,0,0];
+            }
+            loop() {
+                this.ctx.clearRect(0,0,this.w,this.h);
+                if(!this.slices) return;
+                let start = -Math.PI/2;
+                const cx = this.w/2; const cy = this.h/2; const r = Math.min(cx,cy)*0.6;
+                
+                this.slices.forEach((s, i) => {
+                    const target = s.v * Math.PI * 2;
+                    this.curAngles[i] += (target - this.curAngles[i]) * 0.05;
+                    
+                    if(this.curAngles[i] > 0.01) {
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(cx,cy);
+                        this.ctx.arc(cx, cy, r, start, start + this.curAngles[i]);
+                        this.ctx.fillStyle = s.c;
+                        this.ctx.fill();
+                        start += this.curAngles[i];
+                    }
+                });
+                
+                // Donut Hole
+                this.ctx.beginPath();
+                this.ctx.arc(cx, cy, r*0.6, 0, Math.PI*2);
+                this.ctx.fillStyle = '#0a0a0a'; 
+                this.ctx.fill();
+                
+                this.ctx.fillStyle = '#fff';
+                this.ctx.textAlign = 'center';
+                this.ctx.font = '10px Inter';
+                this.ctx.fillText("RATIO", cx, cy+4);
+
+                requestAnimationFrame(()=>this.loop());
+            }
+        }
+
+        // --- INIT ---
+        window.onload = () => {
+            renderTable();
+            renderMetrics();
+            
+            window.mainChart = new ScatterChart();
+            window.barChart = new BarChart();
+            window.pieChart = new PieChart();
+            
+            // Live Type Preview
+            document.getElementById('in-text').addEventListener('input', (e) => {
+                const res = analyze(e.target.value);
+                const html = e.target.value.split(' ').map(w => {
+                    const c = w.toLowerCase().replace(/[^a-z]/g,'');
+                    const v = sentimentDict[c];
+                    if(v>0) return `<span class="tag-pos">${w}</span>`;
+                    if(v<0) return `<span class="tag-neg">${w}</span>`;
+                    return w;
+                }).join(' ');
+                document.getElementById('nlp-preview').innerHTML = html || 'Waiting for input...';
+            });
+        };
     </script>
 </head>
 <body>
 
-    <div class="header-section">
-        <div>
-            <h1>🎬 Cinema Sentiment Analyzer</h1>
-            <p>End-to-End Analysis: NLP Sentiment vs. Box Office Revenue</p>
-        </div>
-        <span class="badge">
-            <span class="python-logo"></span>
-            Powered by Pandas (PyScript)
-        </span>
-    </div>
-
-    <div class="container">
+    <div class="app-container">
         
-        <!-- Left Panel: Data Entry -->
-        <div class="card">
-            <h3>Add a Movie</h3>
-            <p style="font-size: 0.9rem; margin-bottom: 20px;">
-                Enter a movie and a review. The system will analyze the text sentiment locally and update the Pandas DataFrame.
-            </p>
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="brand">CineMetrics</div>
             
-            <div class="form-group">
-                <label>Movie Title</label>
-                <input type="text" id="movieTitle" placeholder="e.g. Dune: Part Two">
+            <div class="control-group">
+                <div>
+                    <label>Movie Asset</label>
+                    <input type="text" id="in-title" placeholder="Title (e.g. Dune Part Two)">
+                </div>
+                <div>
+                    <label>Global Revenue ($M)</label>
+                    <input type="number" id="in-rev" placeholder="0000">
+                </div>
+                <div>
+                    <label>Audience Consensus</label>
+                    <textarea id="in-text" rows="4" placeholder="Paste review text here..."></textarea>
+                </div>
+                <div>
+                    <label>Sentiment Extraction</label>
+                    <div id="nlp-preview" class="nlp-stage">Waiting for input...</div>
+                </div>
+                <button class="btn-main" onclick="addEntry()"> Enter </button>
             </div>
+        </aside>
 
-            <div class="form-group">
-                <label>Box Office Revenue ($ Millions)</label>
-                <input type="number" id="movieRevenue" placeholder="e.g. 700">
-            </div>
-
-            <div class="form-group">
-                <label>Review Text</label>
-                <textarea id="movieReview" rows="4" placeholder="Type a review here... (e.g. 'The visuals were stunning and the story was amazing!')"></textarea>
-            </div>
-
-            <button onclick="addMovie()">Analyze & Add to Dataset</button>
+        <!-- DASHBOARD -->
+        <main class="dashboard">
             
-            <div style="margin-top: 20px; font-size: 0.85rem; color: var(--text-muted);">
-                <strong>How it works:</strong> <br>
-                1. <b>Tokenization:</b> JS splits text into words.<br>
-                2. <b>Scoring:</b> JS matches AFINN dictionary.<br>
-                3. <b>Stats:</b> <u>Python (Pandas)</u> calculates the Pearson Correlation coefficient inside the browser.
-            </div>
-        </div>
-
-        <!-- Right Panel: Visualization & Stats -->
-        <div class="card">
-            <div class="stats-grid">
-                <div class="stat-box">
-                    <span class="stat-value" id="stat-n">0</span>
-                    <span class="stat-label">Movies Analyzed</span>
+            <!-- 1. METRICS -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-head">Data Points</div>
+                    <div class="metric-val" id="m-count">0</div>
                 </div>
-                <div class="stat-box">
-                    <div id="py-status">⏳</div>
-                    <span class="stat-value" id="stat-corr">0.00</span>
-                    <span class="stat-label">Pearson Correlation (r)</span>
+                <div class="metric-card">
+                    <div class="metric-head">Correlation (r)</div>
+                    <div class="metric-val" id="m-corr">--</div>
+                    <span class="metric-status">Calculating...</span>
                 </div>
-                <div class="stat-box">
-                    <span class="stat-value" id="stat-trend">--</span>
-                    <span class="stat-label">Interpretation</span>
+                <div class="metric-card">
+                    <div class="metric-head">Regression (R²)</div>
+                    <div class="metric-val" id="m-r2">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-head">System Status</div>
+                    <div class="metric-val" id="sys-status" style="color:var(--accent)">Init</div>
                 </div>
             </div>
 
-            <div class="canvas-container">
-                <canvas id="scatterChart"></canvas>
+            <!-- 2. MAIN SCATTER CHART -->
+            <div class="chart-main-section">
+                <div class="chart-label">
+                    <div class="live-dot"></div> Market Regression Model
+                </div>
+                <canvas id="viz-scatter"></canvas>
+                <div id="tooltip" class="tooltip"></div>
             </div>
 
-            <div class="table-container">
-                <table id="dataTable">
+            <!-- 3. SECONDARY CHARTS (NEW) -->
+            <div class="secondary-charts-grid">
+                <div class="chart-box">
+                    <div class="chart-label">Top Revenue Assets</div>
+                    <canvas id="viz-bar"></canvas>
+                </div>
+                <div class="chart-box">
+                    <div class="chart-label">Sentiment Ratio</div>
+                    <canvas id="viz-pie"></canvas>
+                </div>
+            </div>
+
+            <!-- 4. DATA TABLE -->
+            <div class="data-section">
+                <div class="section-header">
+                    <div>
+                        <div class="section-title">Live Data Stream</div>
+                        <div class="section-sub">Real-time sentiment ingestion & processing</div>
+                    </div>
+                </div>
+                <table class="data-table">
                     <thead>
                         <tr>
-                            <th>Movie</th>
-                            <th>Revenue ($M)</th>
-                            <th>Sentiment</th>
+                            <th>Asset Name</th>
+                            <th>Revenue</th>
+                            <th>Sentiment Score</th>
                             <th>Keywords Detected</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <!-- Rows injected by JS -->
+                    <tbody id="data-body">
+                        <!-- Injected by JS -->
                     </tbody>
                 </table>
             </div>
-        </div>
+
+        </main>
     </div>
 
-    <!-- 1. Configure Python Environment -->
+    <!-- PYTHON KERNEL -->
     <py-config>
         packages = ["pandas"]
     </py-config>
 
-    <!-- 2. The Python Script -->
     <py-script>
         import pandas as pd
         from pyscript import window
-        from js import document, console
+        from js import document, appState, window as js_window
 
-        def run_pandas_stats():
+        def run_py():
             try:
-                # Get the window object to access variables from the global scope
-                from js import window
-                
-                # Check if window.movies exists
-                if not hasattr(window, 'movies'):
-                   console.log("Movies array not ready yet.")
-                   return
+                document.getElementById('sys-status').innerText = "Processing..."
+                document.getElementById('sys-status').style.color = "#f1c40f"
 
-                data = window.movies.to_py()
-                
-                if not data:
-                    return
+                data = appState.movies.to_py()
+                if not data or len(data) < 2: return
 
-                # 2. Create DataFrame
                 df = pd.DataFrame(data)
                 
-                # 3. Calculate Correlation using Pandas
-                if len(df) > 1:
-                    corr = df['revenue'].corr(df['sentimentScore'])
-                else:
-                    corr = 0.0
+                # Math
+                corr = df['revenue'].corr(df['sentiment'])
+                
+                # Linear Reg (Manual for speed)
+                X = df['sentiment']
+                Y = df['revenue']
+                mx, my = X.mean(), Y.mean()
+                num = ((X-mx)*(Y-my)).sum()
+                den = ((X-mx)**2).sum()
+                slope = num/den if den != 0 else 0
+                icept = my - slope*mx
+                
+                # R2
+                yp = slope*X + icept
+                ss_res = ((Y-yp)**2).sum()
+                ss_tot = ((Y-my)**2).sum()
+                r2 = 1 - ss_res/ss_tot if ss_tot != 0 else 0
 
-                # 4. Update the DOM directly from Python
-                # We format it to 3 decimal places
-                document.getElementById('stat-corr').innerText = f"{corr:.3f}"
-                
-                # 5. Determine Trend Text
-                trend = "Neutral"
-                color = "#fff"
-                
-                if corr > 0.5: 
-                    trend = "Strong Positive"
-                    color = "#4ade80"
-                elif corr > 0.1: 
-                    trend = "Weak Positive"
-                    color = "#4ade80"
-                elif corr < -0.5: 
-                    trend = "Strong Negative"
-                    color = "#f87171"
-                elif corr < -0.1: 
-                    trend = "Weak Negative"
-                    color = "#f87171"
-                
-                trend_el = document.getElementById('stat-trend')
-                trend_el.innerText = trend
-                trend_el.style.color = color
+                # Update JS State
+                js_window.updateStats(slope, icept, r2, corr)
 
-                # Update Status Indicator
-                document.getElementById('py-status').innerText = "🐍"
-                document.getElementById('py-status').title = "Computed via Pandas"
-                
-                console.log(f"Pandas calculated correlation: {corr}")
+                # Update UI
+                document.getElementById('m-corr').innerText = f"{corr:.3f}"
+                document.getElementById('m-r2').innerText = f"{r2:.3f}"
+                document.getElementById('sys-status').innerText = "Optimal"
+                document.getElementById('sys-status').style.color = "#28db85"
 
             except Exception as e:
-                console.error(f"Python Error: {e}")
+                print(e)
 
-        # Expose the function to the global JavaScript window object
-        window.run_pandas_stats = run_pandas_stats
-        
-        # Run once on load to initialize if ready
-        run_pandas_stats()
+        window.run_py = run_py
+        run_py()
     </py-script>
 
+    <script>
+        window.updateStats = (m, b, r2, corr) => {
+            window.appState.regression = { slope: m, intercept: b, r2, isReady: true };
+            if(window.mainChart) window.mainChart.sync();
+        }
+    </script>
 </body>
 </html>
